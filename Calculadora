@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calculadora de Multas | Chefe RP</title>
+  <meta name="description" content="Clone simples de calculadora de multas (estilo RP) em 1 ficheiro, com nome personalizado." />
+  <style>
+    :root{
+      --bg:#0b1020;--card:#121933;--muted:#9aa4c7;--text:#eaf0ff;--accent:#4f7cff;--accent-2:#00d1b2;--danger:#ff4f6d;
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,#0b1020,#0b1226 60%,#0b1020);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial}
+    .wrap{max-width:1100px;margin:auto;padding:24px}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:44px;height:44px;border-radius:14px;background:radial-gradient(100% 100% at 0% 0%,#5ea0ff 0%,#4f7cff 50%,#5336ff 100%);box-shadow:0 10px 30px rgba(79,124,255,.35)}
+    h1{margin:0;font-size:clamp(20px,3vw,28px)}
+    .sub{margin:0;color:var(--muted);font-size:14px}
+    .card{background:rgba(255,255,255,.03);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);box-shadow:0 6px 30px rgba(0,0,0,.25)}
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+    @media (max-width:920px){.grid{grid-template-columns:1fr}}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap}
+    .input,.select,.btn{height:42px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0e1530;color:var(--text);padding:0 12px}
+    .input:focus,.select:focus{outline:2px solid var(--accent)}
+    .btn{cursor:pointer;background:linear-gradient(180deg,#2a3e86,#263b8f);border:1px solid rgba(79,124,255,.6)}
+    .btn.alt{background:linear-gradient(180deg,#116b5f,#0f5b50);border-color:#19b69e}
+    .btn.ghost{background:#0e1530}
+    .btn.danger{background:linear-gradient(180deg,#8e2337,#8f2637);border-color:#ff4f6d}
+    .panel{padding:16px}
+    .list{max-height:520px;overflow:auto;border-top:1px solid rgba(255,255,255,.06)}
+    .row{display:grid;grid-template-columns:32px 1fr 120px 110px;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px dashed rgba(255,255,255,.06)}
+    .row:hover{background:rgba(255,255,255,.03)}
+    .qty{display:flex;align-items:center;gap:6px}
+    .qty input{width:56px;text-align:center;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:#0e1530;color:var(--text)}
+    .chip{font-size:12px;padding:4px 8px;border:1px solid rgba(255,255,255,.15);border-radius:999px;color:var(--muted)}
+    footer.card{margin-top:18px}
+    .totals{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+    .money{font-weight:700;font-size:clamp(22px,3.5vw,28px)}
+    .muted{color:var(--muted)}
+    .notice{display:flex;gap:10px;align-items:flex-start;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.12);padding:12px;border-radius:12px}
+    .small{font-size:12px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Calculadora de Multas | <span id="serverName">Chefe RP</span></h1>
+          <p class="sub">Clone independente (HTML+JS) inspirado em calculadoras de multas RP. Personaliza o nome, itens e regras.</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <input id="search" class="input" placeholder="Procurar infração…" />
+        <select id="sort" class="select">
+          <option value="az">Ordenar: A–Z</option>
+          <option value="za">Ordenar: Z–A</option>
+          <option value="preco+">Preço ↑</option>
+          <option value="preco-">Preço ↓</option>
+        </select>
+        <button id="copy" class="btn" title="Copiar resumo">Copiar resumo</button>
+        <button id="reset" class="btn ghost" title="Limpar seleção">Limpar</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <div class="panel">
+          <div class="notice small">
+            <div>ℹ️</div>
+            <div>
+              <strong>Como usar:</strong> marca as infrações, ajusta a quantidade e vê os totais em tempo real. Os valores e limites podem ser alterados no bloco <em>CONFIG</em> dentro deste ficheiro.
+            </div>
+          </div>
+        </div>
+        <div id="list" class="list" role="list"></div>
+      </section>
+
+      <aside class="card">
+        <div class="panel">
+          <h3 style="margin:0 0 8px">Resumo</h3>
+          <p class="muted small" id="count">0 itens seleccionados</p>
+          <div style="height:12px"></div>
+
+          <label class="small muted">Multiplicador geral (ex.: reincidência)</label>
+          <input id="mult" type="number" min="1" step="1" value="1" class="input" style="width:100%;margin:6px 0 10px" />
+
+          <label class="small muted">Desconto (%)</label>
+          <input id="discount" type="number" min="0" max="100" step="1" value="0" class="input" style="width:100%;margin:6px 0 16px" />
+
+          <div class="totals">
+            <div>
+              <div class="muted small">Subtotal</div>
+              <div id="subtotal" class="money">€0</div>
+            </div>
+            <div>
+              <div class="muted small">Total (com regras)</div>
+              <div id="grand" class="money" style="color:var(--accent-2)">€0</div>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="notice small">
+            <div>⚠️</div>
+            <div id="rulesText">Limite padrão por infração: <strong>10x</strong>. Personaliza em <em>CONFIG.limiteQtd</em>.</div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:14px">
+            <button id="exportJSON" class="btn alt" style="flex:1">Exportar seleção</button>
+            <button id="importJSON" class="btn ghost" style="flex:1">Importar</button>
+          </div>
+          <input id="importFile" type="file" accept="application/json" class="hidden" />
+        </div>
+      </aside>
+    </main>
+
+    <footer class="card panel">
+      <div class="small muted">© <span id="year"></span> <span id="footerName">Chefe RP</span>. Página independente (não é Google Sites). Código livre para uso e edição.</div>
+    </footer>
+  </div>
+
+  <script>
+    // ============================
+    // CONFIG — edita conforme o teu servidor
+    // ============================
+    const CONFIG = {
+      nomeServidor: 'Chefe RP',
+      moeda: '€',
+      limiteQtd: 10,
+      itens: [
+        { id: 'excesso_vel', nome: 'Excesso de velocidade', preco: 750 },
+        { id: 'conducao_perigosa', nome: 'Condução perigosa', preco: 1200 },
+        { id: 'fuga_policia', nome: 'Fuga à polícia', preco: 2000 },
+        { id: 'sem_carta', nome: 'Condução sem carta', preco: 1500 },
+        { id: 'alcool', nome: 'Álcool ao volante', preco: 1800 },
+        { id: 'drogas', nome: 'Posse de substâncias', preco: 2200 },
+        { id: 'arma_ilegal', nome: 'Porte ilegal de arma', preco: 3500 },
+        { id: 'agressao', nome: 'Agressão', preco: 2600 },
+        { id: 'roubo', nome: 'Roubo', preco: 3000 },
+        { id: 'vandalismo', nome: 'Vandalismo', preco: 900 },
+      ]
+    }
+
+    // ============================
+    // Estado
+    // ============================
+    const state = {
+      selecionados: new Map(), // id -> {item, qtd}
+      mult: 1,
+      desconto: 0,
+      filtro: '',
+      ordenacao: 'az'
+    }
+
+    // ============================
+    // Helpers
+    // ============================
+    const fmt = n => CONFIG.moeda + (n).toLocaleString('pt-PT', { maximumFractionDigits: 0 });
+
+    function renderList(){
+      const list = document.getElementById('list');
+      const q = state.filtro.trim().toLowerCase();
+      let itens = [...CONFIG.itens];
+      if(q) itens = itens.filter(x => x.nome.toLowerCase().includes(q));
+      switch(state.ordenacao){
+        case 'az': itens.sort((a,b)=>a.nome.localeCompare(b.nome)); break;
+        case 'za': itens.sort((a,b)=>b.nome.localeCompare(a.nome)); break;
+        case 'preco+': itens.sort((a,b)=>a.preco-b.preco); break;
+        case 'preco-': itens.sort((a,b)=>b.preco-a.preco); break;
+      }
+      list.innerHTML = '';
+      for(const item of itens){
+        const row = document.createElement('div');
+        row.className = 'row';
+        const checked = state.selecionados.has(item.id);
+        const qtd = checked ? state.selecionados.get(item.id).qtd : 0;
+        row.innerHTML = `
+          <input type="checkbox" ${checked?'checked':''} aria-label="Selecionar ${item.nome}">
+          <div>
+            <div>${item.nome}</div>
+            <div class="chip">${fmt(item.preco)} cada</div>
+          </div>
+          <div class="qty">
+            <button class="btn ghost" data-act="menos">−</button>
+            <input type="number" min="0" max="${CONFIG.limiteQtd}" value="${qtd}" aria-label="Quantidade">
+            <button class="btn ghost" data-act="mais">+</button>
+          </div>
+          <div class="muted small">${fmt(item.preco * qtd)}</div>
+        `;
+        const [chk, info, qty, total] = row.children;
+        chk.addEventListener('change', e => {
+          if(e.target.checked){
+            if(!state.selecionados.has(item.id)) state.selecionados.set(item.id,{ item, qtd: Math.max(1, qtd) });
+          }else{
+            state.selecionados.delete(item.id);
+          }
+          update();
+        });
+        const input = qty.querySelector('input');
+        qty.addEventListener('click', e => {
+          const act = e.target.getAttribute('data-act');
+          if(!act) return;
+          let val = parseInt(input.value||'0',10);
+          if(act==='menos') val = Math.max(0, val-1);
+          if(act==='mais') val = Math.min(CONFIG.limiteQtd, val+1);
+          input.value = val;
+          if(val>0){ state.selecionados.set(item.id,{ item, qtd: val }); chk.checked = true; }
+          else { state.selecionados.delete(item.id); chk.checked = false; }
+          update();
+        });
+        input.addEventListener('input', () => {
+          let val = parseInt(input.value||'0',10);
+          if(Number.isNaN(val)) val=0;
+          val = Math.min(CONFIG.limiteQtd, Math.max(0, val));
+          input.value = val;
+          if(val>0){ state.selecionados.set(item.id,{ item, qtd: val }); chk.checked = true; }
+          else { state.selecionados.delete(item.id); chk.checked = false; }
+          update();
+        });
+        list.appendChild(row);
+      }
+    }
+
+    function computeTotals(){
+      let subtotal = 0; let count = 0;
+      for(const {item,qtd} of state.selecionados.values()){
+        subtotal += item.preco * qtd;
+        if(qtd>0) count++;
+      }
+      const mult = Math.max(1, Math.floor(state.mult||1));
+      const desconto = Math.min(100, Math.max(0, Math.floor(state.desconto||0)));
+      let total = subtotal * mult;
+      if(desconto>0) total = total * (1 - desconto/100);
+      return { subtotal, total, count };
+    }
+
+    function update(){
+      renderList();
+      const { subtotal, total, count } = computeTotals();
+      document.getElementById('subtotal').textContent = fmt(subtotal);
+      document.getElementById('grand').textContent = fmt(total);
+      document.getElementById('count').textContent = `${count} itens seleccionados`;
+    }
+
+    // ============================
+    // Eventos UI
+    // ============================
+    document.getElementById('search').addEventListener('input', e=>{ state.filtro = e.target.value; renderList(); });
+    document.getElementById('sort').addEventListener('change', e=>{ state.ordenacao = e.target.value; renderList(); });
+    document.getElementById('mult').addEventListener('input', e=>{ state.mult = parseInt(e.target.value||'1',10)||1; update(); });
+    document.getElementById('discount').addEventListener('input', e=>{ state.desconto = parseInt(e.target.value||'0',10)||0; update(); });
+    document.getElementById('reset').addEventListener('click', ()=>{ state.selecionados.clear(); state.mult=1; state.desconto=0; document.getElementById('mult').value=1; document.getElementById('discount').value=0; update(); });
+
+    document.getElementById('copy').addEventListener('click', ()=>{
+      const linhas = [];
+      for(const {item,qtd} of state.selecionados.values()){
+        if(qtd>0) linhas.push(`${item.nome} x${qtd} = ${fmt(item.preco*qtd)}`);
+      }
+      const { subtotal, total } = computeTotals();
+      linhas.push(`Subtotal: ${fmt(subtotal)}`);
+      linhas.push(`Total: ${fmt(total)}`);
+      const txt = linhas.join('\n');
+      navigator.clipboard.writeText(txt).then(()=>{
+        alert('Resumo copiado!');
+      });
+    });
+
+    document.getElementById('exportJSON').addEventListener('click', ()=>{
+      const payload = {
+        nome: CONFIG.nomeServidor,
+        selecionados: [...state.selecionados.values()].map(x=>({ id:x.item.id, nome:x.item.nome, qtd:x.qtd, preco:x.item.preco })),
+        mult: state.mult,
+        desconto: state.desconto,
+        timestamp: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'seleccao-multas.json';
+      a.click();
+    });
+
+    document.getElementById('importJSON').addEventListener('click', ()=> document.getElementById('importFile').click());
+    document.getElementById('importFile').addEventListener('change', e=>{
+      const file = e.target.files[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const data = JSON.parse(reader.result);
+          state.selecionados.clear();
+          for(const it of data.selecionados||[]){
+            const item = CONFIG.itens.find(x=>x.id===it.id) || { id: it.id, nome: it.nome, preco: it.preco };
+            state.selecionados.set(item.id, { item, qtd: Math.min(CONFIG.limiteQtd, it.qtd|0) });
+          }
+          state.mult = data.mult||1; state.desconto = data.desconto||0;
+          document.getElementById('mult').value=state.mult; document.getElementById('discount').value=state.desconto;
+          update();
+        }catch(err){ alert('Ficheiro inválido.'); }
+      };
+      reader.readAsText(file);
+    });
+
+    // Init
+    document.getElementById('serverName').textContent = CONFIG.nomeServidor;
+    document.getElementById('footerName').textContent = CONFIG.nomeServidor;
+    document.getElementById('year').textContent = new Date().getFullYear();
+    renderList();
+    update();
+  </script>
+</body>
+</html>
